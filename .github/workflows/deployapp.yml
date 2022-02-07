@@ -1,0 +1,87 @@
+# deploy
+
+name: Deploy App
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        type: choice
+        description: gradle task
+        options: 
+        - bundleProdDebug
+        - assembleProdDebug
+
+jobs:
+  deploy:
+    runs-on: macos-11
+
+    env:
+      KEYCHAIN: '/Library/Keychains/System.keychain'
+      APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+      APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+
+    steps:
+    - name: Show inputs
+      run: |
+        echo "task: ${{ github.event.inputs.task }}"
+
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+
+#    - name: Setup - Xcode
+#      run: sudo xcode-select -s /Applications/Xcode_12.5.1.app
+
+#    - name: Setup - Ruby and bundler dependencies
+#      uses: ruby/setup-ruby@v1.57.0
+#      with:
+#        ruby-version: 2.4.0
+#        bundler-cache: true
+
+#    - name: Cache - cocoapods
+#      uses: actions/cache@v2
+#      with:
+#        path: Pods
+#        key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
+#        restore-keys: ${{ runner.os }}-pods-
+
+#    - name: Install - cocoapods
+#      run: pod install --repo-update
+
+    - name: Setup | App Store Connect API
+      id: asc
+      uses: yuki0n0/action-appstoreconnect-token@v1.0
+      with:
+        key id: ${{ env.APPLE_KEY_ID }}
+        issuer id: ${{ env.APPLE_ISSUER_ID }}
+        key: ${{ secrets.APPLE_SECRET }}
+
+    # Keychain
+    - name: Keychain | cer
+      env:
+        CERTIFICATE_ID: ${{ secrets.APPLE_CERTIFICATE_ID }}
+      run: |
+        JSON=`curl -sS -H "Authorization:Bearer ${{ steps.asc.outputs.token }}" https://api.appstoreconnect.apple.com/v1/certificates/$CERTIFICATE_ID?fields[certificates]=certificateContent`
+        echo $JSON | jq -r .data.attributes.certificateContent > ios_distribution.cer.txt
+        base64 --decode ios_distribution.cer.txt > ios_distribution.cer
+        sudo security import ios_distribution.cer -k $KEYCHAIN -T /usr/bin/codesign
+
+#    - name: Keychain | p12
+#      run: |
+#        echo "${{ secrets.P12_BASE64 }}" > ios_distribution.p12.txt
+#        base64 --decode ios_distribution.p12.txt > ios_distribution.p12
+#        sudo security import ios_distribution.p12 -k $KEYCHAIN -P ${{ secrets.P12_PASSWORD }} -T /usr/bin/codesign
+
+#    - name: Build
+#      run: xcodebuild -workspace edx.xcworkspace -scheme edX -configuration Release archive -archivePath ./archive
+#      run: xcodebuild -workspace edx.xcworkspace -scheme edX -sdk iphonesimulator
+
+#    - name: Build
+#      run: xcodebuild -configuration Release build
+#    - name: Build | xcodebuild archive
+#      run: set -o pipefail && xcodebuild -configuration Release archive -archivePath ./archive | xcpretty
+#      run: xcodebuild -exportArchive -archivePath ./archive -exportPath ./build
+
+    - run: echo "This job's status is ${{ job.status }}."
