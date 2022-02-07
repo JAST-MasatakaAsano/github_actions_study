@@ -16,11 +16,6 @@ jobs:
   deploy:
     runs-on: macos-11
 
-    env:
-      KEYCHAIN: '/Library/Keychains/System.keychain'
-      APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
-      APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
-
     steps:
     - name: Show inputs
       run: |
@@ -50,8 +45,7 @@ jobs:
 #    - name: Install - cocoapods
 #      run: pod install --repo-update
 
-    - name: Keychain | p12
-      uses: Apple-Actions/import-codesign-certs@v1
+    - uses: Apple-Actions/import-codesign-certs@v1
       with:
         p12-file-base64: ${{ secrets.CERTIFICATES_P12_BASE64 }}
         p12-password: ${{ secrets.CERTIFICATES_P12_PASSWORD }}
