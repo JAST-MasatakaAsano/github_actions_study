@@ -50,29 +50,11 @@ jobs:
 #    - name: Install - cocoapods
 #      run: pod install --repo-update
 
-    - name: Setup | App Store Connect API
-      id: asc
-      uses: yuki0n0/action-appstoreconnect-token@v1.0
+    - name: Keychain | p12
+      uses: Apple-Actions/import-codesign-certs@v1
       with:
-        key id: ${{ env.APPLE_KEY_ID }}
-        issuer id: ${{ env.APPLE_ISSUER_ID }}
-        key: ${{ secrets.APPLE_SECRET }}
-
-    # Keychain
-    - name: Keychain | cer
-      env:
-        CERTIFICATE_ID: ${{ secrets.APPLE_CERTIFICATE_ID }}
-      run: |
-        JSON=`curl -sS -H "Authorization:Bearer ${{ steps.asc.outputs.token }}" https://api.appstoreconnect.apple.com/v1/certificates/$CERTIFICATE_ID?fields[certificates]=certificateContent`
-        echo $JSON | jq -r .data.attributes.certificateContent > ios_distribution.cer.txt
-        base64 --decode ios_distribution.cer.txt > ios_distribution.cer
-        sudo security import ios_distribution.cer -k $KEYCHAIN -T /usr/bin/codesign
-
-#    - name: Keychain | p12
-#      run: |
-#        echo "${{ secrets.P12_BASE64 }}" > ios_distribution.p12.txt
-#        base64 --decode ios_distribution.p12.txt > ios_distribution.p12
-#        sudo security import ios_distribution.p12 -k $KEYCHAIN -P ${{ secrets.P12_PASSWORD }} -T /usr/bin/codesign
+        p12-file-base64: ${{ secrets.CERTIFICATES_FILE_BASE64 }}
+        p12-password: ${{ secrets.CERTIFICATES_PASSWORD }}
 
 #    - name: Build
 #      run: xcodebuild -workspace edx.xcworkspace -scheme edX -configuration Release archive -archivePath ./archive
